@@ -1,118 +1,92 @@
-import React, { useEffect, useState } from 'react';
+
+import React, { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  setProducts,
+  setError,
+  clearError,
+  setNewProduct,
+  setEditProduct,
+  setIsEditing,
+  addProduct,
+  updateProduct,
+  deleteProduct,
+} from '../features/adminDashboard/adminDashboardSlice';
+import axios from 'axios';
 
 const AdminDashboard = () => {
-  const [products, setProducts] = useState([]);
-  const [newProduct, setNewProduct] = useState({ name: '', description: '', price: '' });
-  const [error, setError] = useState('');
-  const [isEditing, setIsEditing] = useState(null);
-  const [editProduct, setEditProduct] = useState({ name: '', description: '', price: '' });
+  const dispatch = useDispatch();
+  const { products, newProduct, editProduct, error, isEditing } = useSelector((state) => state.adminDashboard);
 
   useEffect(() => {
     const fetchProducts = async () => {
+      dispatch(clearError());
       try {
-        const response = await fetch('http://localhost:8000/api/products/', {
-          headers: {
-            'Authorization': `Token ${localStorage.getItem('token')}`,
-          },
+        const response = await axios.get('/api/products/', {
+          headers: { 'Authorization': `Token ${localStorage.getItem('token')}` },
         });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch products');
-        }
-
-        const data = await response.json();
-        setProducts(data);
+        dispatch(setProducts(response.data));
       } catch (error) {
-        console.error('Error fetching products:', error);
-        setError(error.message);
+        dispatch(setError(error.response?.data?.error || 'Error fetching products'));
       }
     };
 
     fetchProducts();
-  }, []);
+  }, [dispatch]);
 
   const handleCreateProduct = async () => {
+    dispatch(clearError());
     try {
-      const response = await fetch('http://localhost:8000/api/products/', {
-        method: 'POST',
+      const response = await axios.post('/api/products/', newProduct, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Token ${localStorage.getItem('token')}`,
         },
-        body: JSON.stringify(newProduct),
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to create product');
-      }
-
-      const data = await response.json();
-      setProducts([...products, data]);
-      setNewProduct({ name: '', description: '', price: '' });
+      dispatch(addProduct(response.data));
+      dispatch(setNewProduct({ name: '', description: '', price: '' }));
     } catch (error) {
-      console.error('Error creating product:', error);
-      setError(error.message);
+      dispatch(setError(error.response?.data?.error || 'Error creating product'));
     }
   };
 
   const handleUpdateProduct = async (id) => {
+    dispatch(clearError());
     try {
-      const response = await fetch(`http://localhost:8000/api/products/${id}/`, {
-        method: 'PUT',
+      const response = await axios.put(`/api/products/${id}/`, editProduct, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Token ${localStorage.getItem('token')}`,
         },
-        body: JSON.stringify(editProduct),
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to update product');
-      }
-
-      const updatedProduct = await response.json();
-      setProducts(products.map(product => (product.id === id ? updatedProduct : product)));
-      setIsEditing(null);
-      setEditProduct({ name: '', description: '', price: '' });
+      dispatch(updateProduct(response.data));
+      dispatch(setIsEditing(null));
+      dispatch(setEditProduct({ name: '', description: '', price: '' }));
     } catch (error) {
-      console.error('Error updating product:', error);
-      setError(error.message);
+      dispatch(setError(error.response?.data?.error || 'Error updating product'));
     }
   };
 
   const handleDeleteProduct = async (id) => {
+    dispatch(clearError());
     try {
-      const response = await fetch(`http://localhost:8000/api/products/${id}/`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Token ${localStorage.getItem('token')}`,
-        },
+      await axios.delete(`/api/products/${id}/`, {
+        headers: { 'Authorization': `Token ${localStorage.getItem('token')}` },
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete product');
-      }
-
-      setProducts(products.filter(product => product.id !== id));
+      dispatch(deleteProduct(id));
     } catch (error) {
-      console.error('Error deleting product:', error);
-      setError(error.message);
+      dispatch(setError(error.response?.data?.error || 'Error deleting product'));
     }
   };
 
   const handleDownloadCSV = async () => {
+    dispatch(clearError());
     try {
-      const response = await fetch('http://localhost:8000/api/products/csv/', {
-        headers: {
-          'Authorization': `Token ${localStorage.getItem('token')}`,
-        },
+      const response = await axios.get('/api/products/csv/', {
+        headers: { 'Authorization': `Token ${localStorage.getItem('token')}` },
+        responseType: 'blob',
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to download CSV');
-      }
-
-      const blob = await response.blob();
+      const blob = new Blob([response.data], { type: 'text/csv' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -120,8 +94,7 @@ const AdminDashboard = () => {
       a.click();
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Error downloading CSV:', error);
-      setError(error.message);
+      dispatch(setError(error.response?.data?.error || 'Error downloading CSV'));
     }
   };
 
@@ -135,19 +108,19 @@ const AdminDashboard = () => {
         type="text"
         placeholder="Name"
         value={newProduct.name}
-        onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+        onChange={(e) => dispatch(setNewProduct({ ...newProduct, name: e.target.value }))}
       />
       <input
         type="text"
         placeholder="Description"
         value={newProduct.description}
-        onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
+        onChange={(e) => dispatch(setNewProduct({ ...newProduct, description: e.target.value }))}
       />
       <input
         type="number"
         placeholder="Price"
         value={newProduct.price}
-        onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
+        onChange={(e) => dispatch(setNewProduct({ ...newProduct, price: e.target.value }))}
       />
       <button onClick={handleCreateProduct}>Add Product</button>
 
@@ -161,24 +134,27 @@ const AdminDashboard = () => {
                   <input
                     type="text"
                     value={editProduct.name}
-                    onChange={(e) => setEditProduct({ ...editProduct, name: e.target.value })}
+                    onChange={(e) => dispatch(setEditProduct({ ...editProduct, name: e.target.value }))}
                   />
                   <input
                     type="text"
                     value={editProduct.description}
-                    onChange={(e) => setEditProduct({ ...editProduct, description: e.target.value })}
+                    onChange={(e) => dispatch(setEditProduct({ ...editProduct, description: e.target.value }))}
                   />
                   <input
                     type="number"
                     value={editProduct.price}
-                    onChange={(e) => setEditProduct({ ...editProduct, price: e.target.value })}
+                    onChange={(e) => dispatch(setEditProduct({ ...editProduct, price: e.target.value }))}
                   />
                   <button onClick={() => handleUpdateProduct(product.id)}>Save</button>
                 </>
               ) : (
                 <>
                   {product.name}: ${product.price}
-                  <button onClick={() => { setIsEditing(product.id); setEditProduct({ name: product.name, description: product.description, price: product.price }); }}>Edit</button>
+                  <button onClick={() => { 
+                    dispatch(setIsEditing(product.id)); 
+                    dispatch(setEditProduct({ name: product.name, description: product.description, price: product.price })); 
+                  }}>Edit</button>
                   <button onClick={() => handleDeleteProduct(product.id)}>Delete</button>
                 </>
               )}

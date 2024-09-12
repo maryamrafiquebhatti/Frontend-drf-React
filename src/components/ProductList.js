@@ -1,32 +1,36 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { setProducts, setError, clearError } from '../features/products/productsSlice';
+import axios from 'axios';
 
 const ProductList = () => {
-  const [products, setProducts] = useState([]);
-  const [error, setError] = useState('');
+  const dispatch = useDispatch();
+  const products = useSelector((state) => state.products.items);
+  const error = useSelector((state) => state.products.error);
 
   useEffect(() => {
     const fetchProducts = async () => {
+      dispatch(clearError()); 
       try {
-        const response = await fetch('http://localhost:8000/api/products/', {
+        const response = await axios.get('/api/products/', {
           headers: {
             'Authorization': `Token ${localStorage.getItem('token')}`,
           },
         });
 
-        if (!response.ok) {
+        if (!response.status === 200) {
           throw new Error('Failed to fetch products');
         }
 
-        const data = await response.json();
-        setProducts(data);
+        dispatch(setProducts(response.data));
       } catch (error) {
         console.error('Error fetching products:', error);
-        setError(error.message);
+        dispatch(setError(error.response?.data?.error || 'Error fetching products'));
       }
     };
 
     fetchProducts();
-  }, []);
+  }, [dispatch]);
 
   return (
     <div>
@@ -34,7 +38,7 @@ const ProductList = () => {
       {error && <p>{error}</p>}
       <ul>
         {products.length > 0 ? (
-          products.map(product => (
+          products.map((product) => (
             <li key={product.id}>
               {product.name}: ${product.price}
             </li>

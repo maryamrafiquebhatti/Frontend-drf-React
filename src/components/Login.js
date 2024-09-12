@@ -1,45 +1,39 @@
+
 import React, { useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import { setUser, setError, clearError } from '../features/auth/authSlice';
+import axios from 'axios';
 
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const navigate = useNavigate();  // Hook for navigation
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const error = useSelector((state) => state.auth.error);
 
   const handleLogin = async () => {
+    dispatch(clearError());  
     try {
-      const response = await fetch('http://localhost:8000/api/login/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password }),
+      const response = await axios.post('/api/login/', { username, password });
+      const { token } = response.data;
+
+      const userResponse = await axios.get('/api/user-info/', {
+        headers: { 'Authorization': `Token ${token}` },
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Login failed');
-      }
+      dispatch(setUser({ token, user: userResponse.data }));
 
-      const data = await response.json();
-      localStorage.setItem('token', data.token); 
+      localStorage.setItem('token', token);
 
-      const userResponse = await fetch('http://localhost:8000/api/user-info/', {
-        headers: {
-          'Authorization': `Token ${data.token}`,
-        },
-      });
-      const userData = await userResponse.json();
-      
-      if (userData.is_superuser) {
-        navigate('/admin-dashboard');  
+      if (userResponse.data.is_superuser) {
+        navigate('/admin-dashboard');
       } else {
-        navigate('/products');  
+        navigate('/products');
       }
     } catch (error) {
       console.error('Error during login:', error.message);
-      setError(error.message);
+      dispatch(setError(error.response?.data?.error || 'Login failed'));
     }
   };
 

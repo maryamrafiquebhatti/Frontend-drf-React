@@ -1,18 +1,29 @@
+
 import React, { useState } from 'react';
-import axios from 'axios';
+import { useDispatch, useSelector } from 'react-redux';
+import { registerUser, clearError } from '../features/auth/authSlice';
 import { useNavigate } from 'react-router-dom';
 
-function Register() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+const Register = () => {
+  const dispatch = useDispatch();
   const navigate = useNavigate();
+  const error = useSelector((state) => state.auth.error);
 
-  const handleSubmit = (e) => {
+  const [userData, setUserData] = useState({ username: '', password: '' });
+
+  const handleChange = (e) => {
+    setUserData({ ...userData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    axios.post('/api/register/', { username, password })
-      .then(() => navigate('/login'))
-      .catch(() => setError('Error creating account'));
+    dispatch(clearError());
+    try {
+      await dispatch(registerUser(userData));
+      navigate('/login'); 
+    } catch (err) {
+      console.error('Registration failed:', err);
+    }
   };
 
   return (
@@ -20,12 +31,24 @@ function Register() {
       <h2>Register</h2>
       {error && <p>{error}</p>}
       <form onSubmit={handleSubmit}>
-        <input type="text" placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} />
-        <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} />
+        <input
+          type="text"
+          name="username"
+          placeholder="Username"
+          value={userData.username}
+          onChange={handleChange}
+        />
+        <input
+          type="password"
+          name="password"
+          placeholder="Password"
+          value={userData.password}
+          onChange={handleChange}
+        />
         <button type="submit">Register</button>
       </form>
     </div>
   );
-}
+};
 
 export default Register;
